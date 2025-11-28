@@ -23,3 +23,11 @@ text_color = #FFFFFF
 # Workspace configuration
 # Prefix to show before workspace name (e.g., "WS:" or "[" or empty)
 workspace_prefix = 
+
+# Alignment and spacing
+# Center the clock on the bar (default: false, aligns to right)
+center_clock = false
+# Center the workspace indicator on the bar (default: false, aligns to left)
+center_workspace = false
+# Padding around elements in pixels (default: 10)
+padding = 10

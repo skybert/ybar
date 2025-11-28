@@ -6,9 +6,11 @@ let VERSION = "1.0.0"
 class YBarApp: NSObject, NSApplicationDelegate {
     var statusBar: StatusBarController?
     var configPath: String?
+    var centerClock: Bool?
+    var centerWorkspace: Bool?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
-        statusBar = StatusBarController(configPath: configPath)
+        statusBar = StatusBarController(configPath: configPath, centerClock: centerClock, centerWorkspace: centerWorkspace)
         statusBar?.setup()
     }
 }
@@ -20,8 +22,8 @@ class StatusBarController {
     private var timer: Timer?
     private var config: YBarConfig
     
-    init(configPath: String? = nil) {
-        self.config = YBarConfig(path: configPath)
+    init(configPath: String? = nil, centerClock: Bool? = nil, centerWorkspace: Bool? = nil) {
+        self.config = YBarConfig(path: configPath, centerClock: centerClock, centerWorkspace: centerWorkspace)
     }
     
     func setup() {
@@ -79,32 +81,57 @@ class StatusBarController {
     
     private func setupLabels(for window: NSWindow, contentView: NSView) {
         if config.showClock {
-            let clockLabel = NSTextField(frame: NSRect(x: contentView.bounds.width - 180,
-                                                       y: 0,
-                                                       width: 170,
-                                                       height: contentView.bounds.height))
+            let clockWidth: CGFloat = 170
+            let clockX: CGFloat
+            let clockAlignment: NSTextAlignment
+            
+            if config.centerClock {
+                clockX = (contentView.bounds.width - clockWidth) / 2
+                clockAlignment = .center
+            } else {
+                clockX = contentView.bounds.width - clockWidth - config.padding
+                clockAlignment = .right
+            }
+            
+            let clockLabel = NSTextField(frame: NSRect(x: clockX,
+                                                       y: config.padding / 2,
+                                                       width: clockWidth,
+                                                       height: contentView.bounds.height - config.padding))
             clockLabel.isBordered = false
             clockLabel.isEditable = false
             clockLabel.backgroundColor = .clear
             clockLabel.textColor = config.textColor
             clockLabel.font = NSFont.monospacedSystemFont(ofSize: config.fontSize, weight: .regular)
-            clockLabel.alignment = .right
-            clockLabel.autoresizingMask = [.minXMargin]
+            clockLabel.alignment = clockAlignment
+            clockLabel.autoresizingMask = config.centerClock ? [.minXMargin, .maxXMargin] : [.minXMargin]
             contentView.addSubview(clockLabel)
             clockLabels.append(clockLabel)
         }
         
         if config.showWorkspace {
-            let workspaceLabel = NSTextField(frame: NSRect(x: 10,
-                                                           y: 0,
-                                                           width: 200,
-                                                           height: contentView.bounds.height))
+            let workspaceWidth: CGFloat = 200
+            let workspaceX: CGFloat
+            let workspaceAlignment: NSTextAlignment
+            
+            if config.centerWorkspace {
+                workspaceX = (contentView.bounds.width - workspaceWidth) / 2
+                workspaceAlignment = .center
+            } else {
+                workspaceX = config.padding
+                workspaceAlignment = .left
+            }
+            
+            let workspaceLabel = NSTextField(frame: NSRect(x: workspaceX,
+                                                           y: config.padding / 2,
+                                                           width: workspaceWidth,
+                                                           height: contentView.bounds.height - config.padding))
             workspaceLabel.isBordered = false
             workspaceLabel.isEditable = false
             workspaceLabel.backgroundColor = .clear
             workspaceLabel.textColor = config.textColor
             workspaceLabel.font = NSFont.systemFont(ofSize: config.fontSize, weight: .medium)
-            workspaceLabel.alignment = .left
+            workspaceLabel.alignment = workspaceAlignment
+            workspaceLabel.autoresizingMask = config.centerWorkspace ? [.minXMargin, .maxXMargin] : []
             contentView.addSubview(workspaceLabel)
             workspaceLabels.append(workspaceLabel)
         }
@@ -171,10 +198,20 @@ struct YBarConfig {
     var fontSize: CGFloat = 13
     var textColor: NSColor = .white
     var workspacePrefix: String = ""
+    var centerClock: Bool = false
+    var centerWorkspace: Bool = false
+    var padding: CGFloat = 10
     
-    init(path: String? = nil) {
+    init(path: String? = nil, centerClock: Bool? = nil, centerWorkspace: Bool? = nil) {
         let configPath = path ?? NSString(string: "~/.ybar.conf").expandingTildeInPath
         loadConfig(from: configPath)
+        
+        if let centerClock = centerClock {
+            self.centerClock = centerClock
+        }
+        if let centerWorkspace = centerWorkspace {
+            self.centerWorkspace = centerWorkspace
+        }
     }
     
     private mutating func loadConfig(from path: String) {
@@ -212,6 +249,12 @@ struct YBarConfig {
                 if let color = parseColor(value) { textColor = color }
             case "workspace_prefix":
                 workspacePrefix = value
+            case "center_clock":
+                centerClock = value.lowercased() == "true" || value == "1"
+            case "center_workspace":
+                centerWorkspace = value.lowercased() == "true" || value == "1"
+            case "padding":
+                if let p = Double(value) { padding = CGFloat(p) }
             default:
                 break
             }
@@ -241,9 +284,11 @@ func printHelp() {
         ybar [OPTIONS]
     
     OPTIONS:
-        --help              Show this help message
-        --version           Show version information
-        --conf <file>       Use specified configuration file
+        --help                  Show this help message
+        --version               Show version information
+        --conf <file>           Use specified configuration file
+        --center-clock          Center the clock on the bar
+        --center-workspace      Center the workspace indicator on the bar
     
     CONFIGURATION:
         By default, ybar reads configuration from ~/.ybar.conf
@@ -281,6 +326,10 @@ while i < args.count {
             print("Error: --conf requires a file path")
             exit(1)
         }
+    case "--center-clock":
+        delegate.centerClock = true
+    case "--center-workspace":
+        delegate.centerWorkspace = true
     default:
         print("Error: Unknown option '\(arg)'")
         printHelp()
