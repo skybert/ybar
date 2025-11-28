@@ -14,9 +14,9 @@ class YBarApp: NSObject, NSApplicationDelegate {
 }
 
 class StatusBarController {
-    private var window: NSWindow?
-    private var clockLabel: NSTextField?
-    private var workspaceLabel: NSTextField?
+    private var windows: [NSWindow] = []
+    private var clockLabels: [NSTextField] = []
+    private var workspaceLabels: [NSTextField] = []
     private var timer: Timer?
     private var config: YBarConfig
     
@@ -25,24 +25,39 @@ class StatusBarController {
     }
     
     func setup() {
-        guard let screen = NSScreen.main else { return }
+        for screen in NSScreen.screens {
+            createWindowForScreen(screen)
+        }
         
+        updateClock()
+        updateWorkspace()
+        
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.updateClock()
+            self?.updateWorkspace()
+        }
+    }
+    
+    private func createWindowForScreen(_ screen: NSScreen) {
         let barHeight: CGFloat = config.height
-        let windowRect = NSRect(x: 0, y: screen.frame.height - barHeight,
-                               width: screen.frame.width, height: barHeight)
+        let frame = screen.frame
+        let windowRect = NSRect(x: frame.origin.x, 
+                               y: frame.origin.y + frame.height - barHeight,
+                               width: frame.width, 
+                               height: barHeight)
         
-        window = NSWindow(contentRect: windowRect,
-                         styleMask: [.borderless, .fullSizeContentView],
-                         backing: .buffered,
-                         defer: false)
+        let window = NSWindow(contentRect: windowRect,
+                             styleMask: [.borderless, .fullSizeContentView],
+                             backing: .buffered,
+                             defer: false,
+                             screen: screen)
         
-        guard let window = window else { return }
-        
-        window.level = .statusBar
-        window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
+        window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.mainMenuWindow)) + 2)
+        window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
         window.isOpaque = false
         window.hasShadow = false
         window.backgroundColor = .clear
+        window.ignoresMouseEvents = false
         
         let visualEffect = NSVisualEffectView()
         visualEffect.frame = window.contentView!.bounds
@@ -53,61 +68,55 @@ class StatusBarController {
         visualEffect.alphaValue = config.opacity
         window.contentView = visualEffect
         
-        setupLabels()
-        updateClock()
-        updateWorkspace()
+        setupLabels(for: window, contentView: visualEffect)
         
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.updateClock()
-            self?.updateWorkspace()
-        }
-        
-        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+        windows.append(window)
     }
     
-    private func setupLabels() {
-        guard let contentView = window?.contentView else { return }
-        
+    private func setupLabels(for window: NSWindow, contentView: NSView) {
         if config.showClock {
-            clockLabel = NSTextField(frame: NSRect(x: contentView.bounds.width - 120,
-                                                   y: 0,
-                                                   width: 110,
-                                                   height: contentView.bounds.height))
-            clockLabel?.isBordered = false
-            clockLabel?.isEditable = false
-            clockLabel?.backgroundColor = .clear
-            clockLabel?.textColor = config.textColor
-            clockLabel?.font = NSFont.monospacedSystemFont(ofSize: config.fontSize, weight: .regular)
-            clockLabel?.alignment = .right
-            clockLabel?.autoresizingMask = [.minXMargin]
-            contentView.addSubview(clockLabel!)
+            let clockLabel = NSTextField(frame: NSRect(x: contentView.bounds.width - 120,
+                                                       y: 0,
+                                                       width: 110,
+                                                       height: contentView.bounds.height))
+            clockLabel.isBordered = false
+            clockLabel.isEditable = false
+            clockLabel.backgroundColor = .clear
+            clockLabel.textColor = config.textColor
+            clockLabel.font = NSFont.monospacedSystemFont(ofSize: config.fontSize, weight: .regular)
+            clockLabel.alignment = .right
+            clockLabel.autoresizingMask = [.minXMargin]
+            contentView.addSubview(clockLabel)
+            clockLabels.append(clockLabel)
         }
         
         if config.showWorkspace {
-            workspaceLabel = NSTextField(frame: NSRect(x: 10,
-                                                       y: 0,
-                                                       width: 200,
-                                                       height: contentView.bounds.height))
-            workspaceLabel?.isBordered = false
-            workspaceLabel?.isEditable = false
-            workspaceLabel?.backgroundColor = .clear
-            workspaceLabel?.textColor = config.textColor
-            workspaceLabel?.font = NSFont.systemFont(ofSize: config.fontSize, weight: .medium)
-            workspaceLabel?.alignment = .left
-            contentView.addSubview(workspaceLabel!)
+            let workspaceLabel = NSTextField(frame: NSRect(x: 10,
+                                                           y: 0,
+                                                           width: 200,
+                                                           height: contentView.bounds.height))
+            workspaceLabel.isBordered = false
+            workspaceLabel.isEditable = false
+            workspaceLabel.backgroundColor = .clear
+            workspaceLabel.textColor = config.textColor
+            workspaceLabel.font = NSFont.systemFont(ofSize: config.fontSize, weight: .medium)
+            workspaceLabel.alignment = .left
+            contentView.addSubview(workspaceLabel)
+            workspaceLabels.append(workspaceLabel)
         }
     }
     
     private func updateClock() {
-        guard let clockLabel = clockLabel else { return }
         let formatter = DateFormatter()
         formatter.dateFormat = config.clockFormat
-        clockLabel.stringValue = formatter.string(from: Date())
+        let timeString = formatter.string(from: Date())
+        for clockLabel in clockLabels {
+            clockLabel.stringValue = timeString
+        }
     }
     
     private func updateWorkspace() {
-        guard let workspaceLabel = workspaceLabel else { return }
-        
         let task = Process()
         task.launchPath = "/usr/bin/env"
         task.arguments = ["aerospace", "list-workspaces", "--focused"]
@@ -122,12 +131,19 @@ class StatusBarController {
             
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             if let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) {
-                workspaceLabel.stringValue = output.isEmpty ? "—" : "\(config.workspacePrefix)\(output)"
+                let displayText = output.isEmpty ? "—" : "\(config.workspacePrefix)\(output)"
+                for workspaceLabel in workspaceLabels {
+                    workspaceLabel.stringValue = displayText
+                }
             } else {
-                workspaceLabel.stringValue = "—"
+                for workspaceLabel in workspaceLabels {
+                    workspaceLabel.stringValue = "—"
+                }
             }
         } catch {
-            workspaceLabel.stringValue = "—"
+            for workspaceLabel in workspaceLabels {
+                workspaceLabel.stringValue = "—"
+            }
         }
     }
 }
