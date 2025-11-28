@@ -18,6 +18,11 @@ clock_format = yyyy-MM-dd HH:mm
 
 # Text appearance
 font_size = 13
+# Font family options:
+# - "system" (default): Uses system font for workspace, monospaced for clock
+# - "monospace" or "monospaced": Uses monospaced font for both
+# - Any valid font name (e.g., "Helvetica", "Menlo", "SF Mono")
+font_family = system
 text_color = #FFFFFF
 
 # Workspace configuration

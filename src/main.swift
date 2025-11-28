@@ -108,7 +108,7 @@ class StatusBarController {
             workspaceLabel.isEditable = false
             workspaceLabel.backgroundColor = .clear
             workspaceLabel.textColor = config.textColor
-            workspaceLabel.font = NSFont.systemFont(ofSize: config.fontSize, weight: .medium)
+            workspaceLabel.font = config.getFont(size: config.fontSize, monospacedForClock: false)
             workspaceLabel.alignment = workspaceAlignment
             workspaceLabel.autoresizingMask = config.centerWorkspace ? [.minXMargin, .maxXMargin] : []
             workspaceLabel.lineBreakMode = .byClipping
@@ -144,7 +144,7 @@ class StatusBarController {
             clockLabel.isEditable = false
             clockLabel.backgroundColor = .clear
             clockLabel.textColor = config.textColor
-            clockLabel.font = NSFont.monospacedSystemFont(ofSize: config.fontSize, weight: .regular)
+            clockLabel.font = config.getFont(size: config.fontSize, monospacedForClock: true)
             clockLabel.alignment = clockAlignment
             clockLabel.autoresizingMask = config.centerClock ? [.minXMargin, .maxXMargin] : [.minXMargin]
             clockLabel.lineBreakMode = .byClipping
@@ -214,6 +214,7 @@ struct YBarConfig {
     var showWorkspace: Bool = true
     var clockFormat: String = "yyyy-MM-dd HH:mm"
     var fontSize: CGFloat = 13
+    var fontFamily: String = "system"
     var textColor: NSColor = .white
     var workspacePrefix: String = ""
     var centerClock: Bool = false
@@ -263,6 +264,8 @@ struct YBarConfig {
                 clockFormat = value
             case "font_size":
                 if let f = Double(value) { fontSize = CGFloat(f) }
+            case "font_family":
+                fontFamily = value
             case "text_color":
                 if let color = parseColor(value) { textColor = color }
             case "workspace_prefix":
@@ -291,6 +294,26 @@ struct YBarConfig {
         let b = CGFloat(rgb & 0x0000FF) / 255.0
         
         return NSColor(red: r, green: g, blue: b, alpha: 1.0)
+    }
+    
+    private func getFont(size: CGFloat, monospacedForClock: Bool = false) -> NSFont {
+        switch fontFamily.lowercased() {
+        case "system":
+            return monospacedForClock ? 
+                NSFont.monospacedSystemFont(ofSize: size, weight: .regular) :
+                NSFont.systemFont(ofSize: size, weight: .medium)
+        case "monospace", "monospaced":
+            return NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
+        default:
+            // Try to use the specified font family, fallback to system if not found
+            if let customFont = NSFont(name: fontFamily, size: size) {
+                return customFont
+            } else {
+                return monospacedForClock ?
+                    NSFont.monospacedSystemFont(ofSize: size, weight: .regular) :
+                    NSFont.systemFont(ofSize: size, weight: .medium)
+            }
+        }
     }
 }
 
