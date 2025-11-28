@@ -27,8 +27,8 @@ class StatusBarController {
     }
     
     func setup() {
-        for screen in NSScreen.screens {
-            createWindowForScreen(screen)
+        if let mainScreen = NSScreen.main {
+            createWindowForScreen(mainScreen)
         }
         
         updateClock()
@@ -80,42 +80,21 @@ class StatusBarController {
     }
     
     private func setupLabels(for window: NSWindow, contentView: NSView) {
-        if config.showClock {
-            let clockWidth: CGFloat = 170
-            let clockX: CGFloat
-            let clockAlignment: NSTextAlignment
-            
-            if config.centerClock {
-                clockX = (contentView.bounds.width - clockWidth) / 2
-                clockAlignment = .center
-            } else {
-                clockX = contentView.bounds.width - clockWidth - config.padding
-                clockAlignment = .right
-            }
-            
-            let clockLabel = NSTextField(frame: NSRect(x: clockX,
-                                                       y: config.padding / 2,
-                                                       width: clockWidth,
-                                                       height: contentView.bounds.height - config.padding))
-            clockLabel.isBordered = false
-            clockLabel.isEditable = false
-            clockLabel.backgroundColor = .clear
-            clockLabel.textColor = config.textColor
-            clockLabel.font = NSFont.monospacedSystemFont(ofSize: config.fontSize, weight: .regular)
-            clockLabel.alignment = clockAlignment
-            clockLabel.autoresizingMask = config.centerClock ? [.minXMargin, .maxXMargin] : [.minXMargin]
-            contentView.addSubview(clockLabel)
-            clockLabels.append(clockLabel)
-        }
+        let bothCentered = config.showClock && config.showWorkspace && config.centerClock && config.centerWorkspace
         
         if config.showWorkspace {
-            let workspaceWidth: CGFloat = 200
+            let workspaceWidth: CGFloat = bothCentered ? 80 : 200
             let workspaceX: CGFloat
             let workspaceAlignment: NSTextAlignment
             
             if config.centerWorkspace {
-                workspaceX = (contentView.bounds.width - workspaceWidth) / 2
-                workspaceAlignment = .center
+                if bothCentered {
+                    // Position to the left of center
+                    workspaceX = (contentView.bounds.width / 2) - workspaceWidth - (config.padding / 2)
+                } else {
+                    workspaceX = (contentView.bounds.width - workspaceWidth) / 2
+                }
+                workspaceAlignment = .right
             } else {
                 workspaceX = config.padding
                 workspaceAlignment = .left
@@ -132,8 +111,47 @@ class StatusBarController {
             workspaceLabel.font = NSFont.systemFont(ofSize: config.fontSize, weight: .medium)
             workspaceLabel.alignment = workspaceAlignment
             workspaceLabel.autoresizingMask = config.centerWorkspace ? [.minXMargin, .maxXMargin] : []
+            workspaceLabel.lineBreakMode = .byClipping
+            workspaceLabel.usesSingleLineMode = true
+            workspaceLabel.cell?.truncatesLastVisibleLine = true
             contentView.addSubview(workspaceLabel)
             workspaceLabels.append(workspaceLabel)
+        }
+        
+        if config.showClock {
+            let clockWidth: CGFloat = bothCentered ? 150 : 170
+            let clockX: CGFloat
+            let clockAlignment: NSTextAlignment
+            
+            if config.centerClock {
+                if bothCentered {
+                    // Position to the right of center
+                    clockX = (contentView.bounds.width / 2) + (config.padding / 2)
+                } else {
+                    clockX = (contentView.bounds.width - clockWidth) / 2
+                }
+                clockAlignment = .left
+            } else {
+                clockX = contentView.bounds.width - clockWidth - config.padding
+                clockAlignment = .right
+            }
+            
+            let clockLabel = NSTextField(frame: NSRect(x: clockX,
+                                                       y: config.padding / 2,
+                                                       width: clockWidth,
+                                                       height: contentView.bounds.height - config.padding))
+            clockLabel.isBordered = false
+            clockLabel.isEditable = false
+            clockLabel.backgroundColor = .clear
+            clockLabel.textColor = config.textColor
+            clockLabel.font = NSFont.monospacedSystemFont(ofSize: config.fontSize, weight: .regular)
+            clockLabel.alignment = clockAlignment
+            clockLabel.autoresizingMask = config.centerClock ? [.minXMargin, .maxXMargin] : [.minXMargin]
+            clockLabel.lineBreakMode = .byClipping
+            clockLabel.usesSingleLineMode = true
+            clockLabel.cell?.truncatesLastVisibleLine = true
+            contentView.addSubview(clockLabel)
+            clockLabels.append(clockLabel)
         }
     }
     
