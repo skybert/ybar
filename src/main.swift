@@ -8,7 +8,7 @@ class YBarApp: NSObject, NSApplicationDelegate {
     var configPath: String?
     var centerClock: Bool?
     var centerWorkspace: Bool?
-    
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusBar = StatusBarController(configPath: configPath, centerClock: centerClock, centerWorkspace: centerWorkspace)
         statusBar?.setup()
@@ -21,41 +21,41 @@ class StatusBarController {
     private var workspaceLabels: [NSTextField] = []
     private var timer: Timer?
     private var config: YBarConfig
-    
+
     init(configPath: String? = nil, centerClock: Bool? = nil, centerWorkspace: Bool? = nil) {
         self.config = YBarConfig(path: configPath, centerClock: centerClock, centerWorkspace: centerWorkspace)
     }
-    
+
     func setup() {
         if let mainScreen = NSScreen.main {
             createWindowForScreen(mainScreen)
         }
-        
+
         updateClock()
         updateWorkspace()
-        
+
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.updateClock()
             self?.updateWorkspace()
         }
     }
-    
+
     private func createWindowForScreen(_ screen: NSScreen) {
         let barHeight: CGFloat = config.height
         let fullFrame = screen.frame
-        
+
         // Position at the very top of the screen
-        let windowRect = NSRect(x: fullFrame.origin.x, 
+        let windowRect = NSRect(x: fullFrame.origin.x,
                                y: fullFrame.origin.y + fullFrame.height - barHeight,
-                               width: fullFrame.width, 
+                               width: fullFrame.width,
                                height: barHeight)
-        
+
         let window = NSWindow(contentRect: windowRect,
                              styleMask: [.borderless, .fullSizeContentView],
                              backing: .buffered,
                              defer: false,
                              screen: screen)
-        
+
         window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.popUpMenuWindow)))
         window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
         window.isOpaque = false
@@ -63,7 +63,7 @@ class StatusBarController {
         window.backgroundColor = .clear
         window.ignoresMouseEvents = false
         window.setFrame(windowRect, display: true)
-        
+
         let visualEffect = NSVisualEffectView()
         visualEffect.frame = window.contentView!.bounds
         visualEffect.autoresizingMask = [.width, .height]
@@ -72,21 +72,21 @@ class StatusBarController {
         visualEffect.blendingMode = .behindWindow
         visualEffect.alphaValue = config.opacity
         window.contentView = visualEffect
-        
+
         setupLabels(for: window, contentView: visualEffect)
-        
+
         window.orderFrontRegardless()
         windows.append(window)
     }
-    
+
     private func setupLabels(for window: NSWindow, contentView: NSView) {
         let bothCentered = config.showClock && config.showWorkspace && config.centerClock && config.centerWorkspace
-        
+
         if config.showWorkspace {
             let workspaceWidth: CGFloat = bothCentered ? 80 : 200
             let workspaceX: CGFloat
             let workspaceAlignment: NSTextAlignment
-            
+
             if config.centerWorkspace {
                 if bothCentered {
                     // Position to the left of center
@@ -99,7 +99,7 @@ class StatusBarController {
                 workspaceX = config.padding
                 workspaceAlignment = .left
             }
-            
+
             let workspaceLabel = NSTextField(frame: NSRect(x: workspaceX,
                                                            y: config.padding / 2,
                                                            width: workspaceWidth,
@@ -117,12 +117,12 @@ class StatusBarController {
             contentView.addSubview(workspaceLabel)
             workspaceLabels.append(workspaceLabel)
         }
-        
+
         if config.showClock {
             let clockWidth: CGFloat = bothCentered ? 150 : 170
             let clockX: CGFloat
             let clockAlignment: NSTextAlignment
-            
+
             if config.centerClock {
                 if bothCentered {
                     // Position to the right of center
@@ -135,7 +135,7 @@ class StatusBarController {
                 clockX = contentView.bounds.width - clockWidth - config.padding
                 clockAlignment = .right
             }
-            
+
             let clockLabel = NSTextField(frame: NSRect(x: clockX,
                                                        y: config.padding / 2,
                                                        width: clockWidth,
@@ -154,7 +154,7 @@ class StatusBarController {
             clockLabels.append(clockLabel)
         }
     }
-    
+
     private func updateClock() {
         let formatter = DateFormatter()
         formatter.dateFormat = config.clockFormat
@@ -163,23 +163,23 @@ class StatusBarController {
             clockLabel.stringValue = timeString
         }
     }
-    
+
     private func updateWorkspace() {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
-            
+
             let task = Process()
             task.launchPath = "/usr/bin/env"
             task.arguments = ["aerospace", "list-workspaces", "--focused"]
-            
+
             let pipe = Pipe()
             task.standardOutput = pipe
             task.standardError = Pipe()
-            
+
             do {
                 try task.run()
                 task.waitUntilExit()
-                
+
                 let data = pipe.fileHandleForReading.readDataToEndOfFile()
                 if let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) {
                     let displayText = output.isEmpty ? "—" : "\(self.config.workspacePrefix)\(output)"
@@ -220,11 +220,11 @@ struct YBarConfig {
     var centerClock: Bool = false
     var centerWorkspace: Bool = false
     var padding: CGFloat = 10
-    
+
     init(path: String? = nil, centerClock: Bool? = nil, centerWorkspace: Bool? = nil) {
         let configPath = path ?? NSString(string: "~/.ybar.conf").expandingTildeInPath
         loadConfig(from: configPath)
-        
+
         if let centerClock = centerClock {
             self.centerClock = centerClock
         }
@@ -232,23 +232,23 @@ struct YBarConfig {
             self.centerWorkspace = centerWorkspace
         }
     }
-    
+
     private mutating func loadConfig(from path: String) {
         guard let content = try? String(contentsOfFile: path, encoding: .utf8) else { return }
-        
+
         let lines = content.components(separatedBy: .newlines)
         for line in lines {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             if trimmed.isEmpty || trimmed.hasPrefix("#") { continue }
-            
+
             let parts = trimmed.split(separator: "=", maxSplits: 1).map {
                 $0.trimmingCharacters(in: .whitespaces)
             }
             guard parts.count == 2 else { continue }
-            
+
             let key = parts[0]
             let value = parts[1]
-            
+
             switch key {
             case "height":
                 if let h = Double(value) { height = CGFloat(h) }
@@ -281,25 +281,25 @@ struct YBarConfig {
             }
         }
     }
-    
+
     private func parseColor(_ hex: String) -> NSColor? {
         var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
         hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
-        
+
         var rgb: UInt64 = 0
         guard Scanner(string: hexSanitized).scanHexInt64(&rgb) else { return nil }
-        
+
         let r = CGFloat((rgb & 0xFF0000) >> 16) / 255.0
         let g = CGFloat((rgb & 0x00FF00) >> 8) / 255.0
         let b = CGFloat(rgb & 0x0000FF) / 255.0
-        
+
         return NSColor(red: r, green: g, blue: b, alpha: 1.0)
     }
-    
+
     private func getFont(size: CGFloat, monospacedForClock: Bool = false) -> NSFont {
         switch fontFamily.lowercased() {
         case "system":
-            return monospacedForClock ? 
+            return monospacedForClock ?
                 NSFont.monospacedSystemFont(ofSize: size, weight: .regular) :
                 NSFont.systemFont(ofSize: size, weight: .medium)
         case "monospace", "monospaced":
@@ -320,17 +320,17 @@ struct YBarConfig {
 func printHelp() {
     print("""
     ybar - A custom menubar replacement for macOS
-    
+
     USAGE:
         ybar [OPTIONS]
-    
+
     OPTIONS:
         --help                  Show this help message
         --version               Show version information
         --conf <file>           Use specified configuration file
         --center-clock          Center the clock on the bar
         --center-workspace      Center the workspace indicator on the bar
-    
+
     CONFIGURATION:
         By default, ybar reads configuration from ~/.ybar.conf
         See man ybar for configuration options.
@@ -351,7 +351,7 @@ args.removeFirst()
 var i = 0
 while i < args.count {
     let arg = args[i]
-    
+
     switch arg {
     case "--help", "-h":
         printHelp()
@@ -376,7 +376,7 @@ while i < args.count {
         printHelp()
         exit(1)
     }
-    
+
     i += 1
 }
 
