@@ -1,0 +1,90 @@
+.TH YBAR 1 "November 2024" "ybar 1.0.0" "User Commands"
+.SH NAME
+ybar \- A custom menubar replacement for macOS
+.SH SYNOPSIS
+.B ybar
+[\fIOPTIONS\fR]
+.SH DESCRIPTION
+.B ybar
+is a lightweight, configurable menubar replacement for macOS written in Swift.
+It provides a translucent bar at the top of the screen showing a clock and
+AeroSpace workspace indicator.
+.PP
+The menubar requires the native macOS menubar to be set to "always hide" for
+proper operation.
+.SH OPTIONS
+.TP
+.B \-\-help, \-h
+Display help information and exit.
+.TP
+.B \-\-version, \-v
+Display version information and exit.
+.TP
+.B \-\-conf \fIFILE\fR, \-c \fIFILE\fR
+Use the specified configuration file instead of the default ~/.ybar.conf
+.SH CONFIGURATION
+Configuration is read from
+.I ~/.ybar.conf
+unless overridden with the
+.B \-\-conf
+option. The configuration file uses a simple key=value format.
+.PP
+Available configuration options:
+.TP
+.B height
+Height of the menubar in pixels (default: 24)
+.TP
+.B opacity
+Background opacity from 0.0 to 1.0 (default: 0.7)
+.TP
+.B blur
+Enable background blur effect (default: true)
+.TP
+.B show_clock
+Show clock on the right side (default: true)
+.TP
+.B show_workspace
+Show AeroSpace workspace indicator on the left (default: true)
+.TP
+.B clock_format
+Date format string for the clock (default: HH:mm:ss)
+Uses standard date format specifiers:
+  HH - hour (00-23), mm - minute (00-59), ss - second (00-59)
+  yyyy - year, MM - month, dd - day
+.TP
+.B font_size
+Font size for text elements (default: 13)
+.TP
+.B text_color
+Text color in hexadecimal format (default: #FFFFFF)
+.TP
+.B workspace_prefix
+Prefix string for workspace indicator (default: empty)
+.SH EXAMPLE CONFIGURATION
+.nf
+# ~/.ybar.conf
+height = 26
+opacity = 0.8
+blur = true
+show_clock = true
+show_workspace = true
+clock_format = HH:mm
+font_size = 14
+text_color = #FFFFFF
+workspace_prefix = WS:
+.fi
+.SH FILES
+.TP
+.I ~/.ybar.conf
+Default configuration file
+.SH REQUIREMENTS
+.IP \(bu 2
+macOS native menubar must be set to "always hide"
+.IP \(bu 2
+AeroSpace window manager (optional, for workspace indicator)
+.SH AUTHORS
+See the AUTHORS file in the source distribution for a list of contributors.
+.SH SEE ALSO
+.BR aerospace (1)
+.SH BUGS
+Report bugs to the project repository or issue tracker.

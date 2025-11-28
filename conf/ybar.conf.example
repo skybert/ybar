@@ -1,0 +1,25 @@
+# ybar configuration file
+# Copy this file to ~/.ybar.conf and customize as needed
+
+# Bar appearance
+height = 24
+opacity = 0.7
+blur = true
+
+# Elements to display
+show_clock = true
+show_workspace = true
+
+# Clock configuration
+# Format uses standard date format specifiers:
+# HH = hour (00-23), mm = minute, ss = second
+# yyyy = year, MM = month, dd = day
+clock_format = HH:mm:ss
+
+# Text appearance
+font_size = 13
+text_color = #FFFFFF
+
+# Workspace configuration
+# Prefix to show before workspace name (e.g., "WS:" or "[" or empty)
+workspace_prefix = 
