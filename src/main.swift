@@ -1,8 +1,6 @@
 import Cocoa
 import Foundation
 
-let VERSION = "1.0.0"
-
 class YBarApp: NSObject, NSApplicationDelegate {
     var statusBar: StatusBarController?
     var configPath: String?
@@ -296,7 +294,7 @@ struct YBarConfig {
         return NSColor(red: r, green: g, blue: b, alpha: 1.0)
     }
 
-    private func getFont(size: CGFloat, monospacedForClock: Bool = false) -> NSFont {
+    func getFont(size: CGFloat, monospacedForClock: Bool = false) -> NSFont {
         switch fontFamily.lowercased() {
         case "system":
             return monospacedForClock ?
