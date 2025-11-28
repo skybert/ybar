@@ -40,10 +40,12 @@ class StatusBarController {
     
     private func createWindowForScreen(_ screen: NSScreen) {
         let barHeight: CGFloat = config.height
-        let frame = screen.frame
-        let windowRect = NSRect(x: frame.origin.x, 
-                               y: frame.origin.y + frame.height - barHeight,
-                               width: frame.width, 
+        let fullFrame = screen.frame
+        
+        // Position at the very top of the screen
+        let windowRect = NSRect(x: fullFrame.origin.x, 
+                               y: fullFrame.origin.y + fullFrame.height - barHeight,
+                               width: fullFrame.width, 
                                height: barHeight)
         
         let window = NSWindow(contentRect: windowRect,
@@ -58,6 +60,7 @@ class StatusBarController {
         window.hasShadow = false
         window.backgroundColor = .clear
         window.ignoresMouseEvents = false
+        window.setFrame(windowRect, display: true)
         
         let visualEffect = NSVisualEffectView()
         visualEffect.frame = window.contentView!.bounds
