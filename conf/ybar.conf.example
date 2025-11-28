@@ -14,7 +14,7 @@ show_workspace = true
 # Format uses standard date format specifiers:
 # HH = hour (00-23), mm = minute, ss = second
 # yyyy = year, MM = month, dd = day
-clock_format = HH:mm:ss
+clock_format = yyyy-MM-dd HH:mm
 
 # Text appearance
 font_size = 13

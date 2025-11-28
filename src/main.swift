@@ -54,7 +54,7 @@ class StatusBarController {
                              defer: false,
                              screen: screen)
         
-        window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.mainMenuWindow)) + 2)
+        window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.popUpMenuWindow)))
         window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
         window.isOpaque = false
         window.hasShadow = false
@@ -79,9 +79,9 @@ class StatusBarController {
     
     private func setupLabels(for window: NSWindow, contentView: NSView) {
         if config.showClock {
-            let clockLabel = NSTextField(frame: NSRect(x: contentView.bounds.width - 120,
+            let clockLabel = NSTextField(frame: NSRect(x: contentView.bounds.width - 180,
                                                        y: 0,
-                                                       width: 110,
+                                                       width: 170,
                                                        height: contentView.bounds.height))
             clockLabel.isBordered = false
             clockLabel.isEditable = false
@@ -120,32 +120,42 @@ class StatusBarController {
     }
     
     private func updateWorkspace() {
-        let task = Process()
-        task.launchPath = "/usr/bin/env"
-        task.arguments = ["aerospace", "list-workspaces", "--focused"]
-        
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = Pipe()
-        
-        do {
-            try task.run()
-            task.waitUntilExit()
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
             
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            if let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) {
-                let displayText = output.isEmpty ? "—" : "\(config.workspacePrefix)\(output)"
-                for workspaceLabel in workspaceLabels {
-                    workspaceLabel.stringValue = displayText
+            let task = Process()
+            task.launchPath = "/usr/bin/env"
+            task.arguments = ["aerospace", "list-workspaces", "--focused"]
+            
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = Pipe()
+            
+            do {
+                try task.run()
+                task.waitUntilExit()
+                
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                if let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) {
+                    let displayText = output.isEmpty ? "—" : "\(self.config.workspacePrefix)\(output)"
+                    DispatchQueue.main.async {
+                        for workspaceLabel in self.workspaceLabels {
+                            workspaceLabel.stringValue = displayText
+                        }
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        for workspaceLabel in self.workspaceLabels {
+                            workspaceLabel.stringValue = "—"
+                        }
+                    }
                 }
-            } else {
-                for workspaceLabel in workspaceLabels {
-                    workspaceLabel.stringValue = "—"
+            } catch {
+                DispatchQueue.main.async {
+                    for workspaceLabel in self.workspaceLabels {
+                        workspaceLabel.stringValue = "—"
+                    }
                 }
-            }
-        } catch {
-            for workspaceLabel in workspaceLabels {
-                workspaceLabel.stringValue = "—"
             }
         }
     }
@@ -157,7 +167,7 @@ struct YBarConfig {
     var blur: Bool = true
     var showClock: Bool = true
     var showWorkspace: Bool = true
-    var clockFormat: String = "HH:mm:ss"
+    var clockFormat: String = "yyyy-MM-dd HH:mm"
     var fontSize: CGFloat = 13
     var textColor: NSColor = .white
     var workspacePrefix: String = ""

@@ -83,10 +83,7 @@ macOS native menubar must be set to "always hide"
 .IP \(bu 2
 AeroSpace window manager (optional, for workspace indicator)
 .SH AUTHORS
-.br
-Torstein Krause Johansen
-.br
-Copilot
+See the AUTHORS file in the source distribution for a list of contributors.
 .SH SEE ALSO
 .BR aerospace (1)
 .SH BUGS
