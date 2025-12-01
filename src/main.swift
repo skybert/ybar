@@ -36,6 +36,33 @@ class StatusBarController {
             self?.updateClock()
             self?.updateWorkspace()
         }
+
+        // Listen for screen configuration changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(screenParametersChanged),
+            name: NSApplication.didChangeScreenParametersNotification,
+            object: nil
+        )
+    }
+
+    @objc private func screenParametersChanged() {
+        // Remove existing windows
+        for window in windows {
+            window.close()
+        }
+        windows.removeAll()
+        clockLabels.removeAll()
+        workspaceLabels.removeAll()
+
+        // Recreate window on main screen
+        if let mainScreen = NSScreen.main {
+            createWindowForScreen(mainScreen)
+        }
+
+        // Update immediately
+        updateClock()
+        updateWorkspace()
     }
 
     private func createWindowForScreen(_ screen: NSScreen) {
