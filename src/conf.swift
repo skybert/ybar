@@ -16,7 +16,7 @@ struct YBarConfig {
     var centerWorkspace: Bool = false
     var padding: CGFloat = 10
     var itemSpacing: CGFloat = 10
-    var rightMargin: CGFloat = 30
+    var rightMargin: CGFloat = 20
 
     init(path: String? = nil, centerClock: Bool? = nil, centerWorkspace: Bool? = nil) {
         let configPath = path ?? NSString(string: "~/.ybar.conf").expandingTildeInPath
