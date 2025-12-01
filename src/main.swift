@@ -1,5 +1,6 @@
 import Cocoa
 import Foundation
+import IOKit.ps
 
 class YBarApp: NSObject, NSApplicationDelegate {
     var statusBar: StatusBarController?
@@ -16,7 +17,9 @@ class YBarApp: NSObject, NSApplicationDelegate {
 class StatusBarController {
     private var windows: [NSWindow] = []
     private var clockLabels: [NSTextField] = []
+    private var dateLabels: [NSTextField] = []
     private var workspaceLabels: [NSTextField] = []
+    private var batteryLabels: [NSTextField] = []
     private var timer: Timer?
     private var config: YBarConfig
 
@@ -35,6 +38,7 @@ class StatusBarController {
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.updateClock()
             self?.updateWorkspace()
+            self?.updateBattery()
         }
 
         // Listen for screen configuration changes
@@ -53,7 +57,9 @@ class StatusBarController {
         }
         windows.removeAll()
         clockLabels.removeAll()
+        dateLabels.removeAll()
         workspaceLabels.removeAll()
+        batteryLabels.removeAll()
 
         // Recreate window on main screen
         if let mainScreen = NSScreen.main {
@@ -63,6 +69,7 @@ class StatusBarController {
         // Update immediately
         updateClock()
         updateWorkspace()
+        updateBattery()
     }
 
     private func createWindowForScreen(_ screen: NSScreen) {
@@ -107,6 +114,7 @@ class StatusBarController {
     private func setupLabels(for window: NSWindow, contentView: NSView) {
         let bothCentered = config.showClock && config.showWorkspace && config.centerClock && config.centerWorkspace
 
+        // Setup left-aligned workspace indicator
         if config.showWorkspace {
             let workspaceWidth: CGFloat = bothCentered ? 80 : 200
             let workspaceX: CGFloat
@@ -142,47 +150,96 @@ class StatusBarController {
             contentView.addSubview(workspaceLabel)
             workspaceLabels.append(workspaceLabel)
         }
-
+        
+        // Setup right-aligned items using generic layout system
+        setupRightAlignedItems(contentView: contentView)
+    }
+    
+    private func setupRightAlignedItems(contentView: NSView) {
+        // Define right-aligned items in display order (left to right)
+        // Each item: (width, isMonospaced, labelArray)
+        struct RightItem {
+            let width: CGFloat
+            let isMonospaced: Bool
+            let alignment: NSTextAlignment
+            let setupAction: (NSTextField) -> Void
+        }
+        
+        var items: [RightItem] = []
+        
+        // Battery indicator
+        items.append(RightItem(
+            width: 60,
+            isMonospaced: true,
+            alignment: .right
+        ) { [weak self] label in
+            self?.batteryLabels.append(label)
+        })
+        
+        // Date
+        items.append(RightItem(
+            width: 85,
+            isMonospaced: true,
+            alignment: .right
+        ) { [weak self] label in
+            self?.dateLabels.append(label)
+        })
+        
+        // Clock (time)
         if config.showClock {
-            let clockWidth: CGFloat = bothCentered ? 150 : 170
-            let clockX: CGFloat
-            let clockAlignment: NSTextAlignment
-
-            if config.centerClock {
-                if bothCentered {
-                    // Position to the right of center
-                    clockX = (contentView.bounds.width / 2) + (config.padding / 2)
-                } else {
-                    clockX = (contentView.bounds.width - clockWidth) / 2
-                }
-                clockAlignment = .left
-            } else {
-                clockX = contentView.bounds.width - clockWidth - config.padding
-                clockAlignment = .right
+            items.append(RightItem(
+                width: 45,
+                isMonospaced: true,
+                alignment: .right
+            ) { [weak self] label in
+                self?.clockLabels.append(label)
+            })
+        }
+        
+        // Calculate positions from right to left
+        var currentX = contentView.bounds.width - config.padding - config.rightMargin
+        
+        for (index, item) in items.enumerated().reversed() {
+            currentX -= item.width
+            
+            let label = NSTextField(frame: NSRect(x: currentX,
+                                                   y: 0,
+                                                   width: item.width,
+                                                   height: contentView.bounds.height - config.padding))
+            label.isBordered = false
+            label.isEditable = false
+            label.backgroundColor = .clear
+            label.textColor = config.textColor
+            label.font = config.getFont(size: config.fontSize, monospacedForClock: item.isMonospaced)
+            // Only right-align the rightmost item, left-align others for tighter spacing
+            label.alignment = (index == items.count - 1) ? item.alignment : .left
+            label.autoresizingMask = [.minXMargin]
+            label.lineBreakMode = .byClipping
+            label.usesSingleLineMode = true
+            label.cell?.truncatesLastVisibleLine = true
+            
+            contentView.addSubview(label)
+            item.setupAction(label)
+            
+            // Add spacing before the next item (unless this is the last item)
+            if index > 0 {
+                currentX -= config.itemSpacing
             }
-
-            let clockLabel = NSTextField(frame: NSRect(x: clockX,
-                                                       y: 0,
-                                                       width: clockWidth,
-                                                       height: contentView.bounds.height - config.padding))
-            clockLabel.isBordered = false
-            clockLabel.isEditable = false
-            clockLabel.backgroundColor = .clear
-            clockLabel.textColor = config.textColor
-            clockLabel.font = config.getFont(size: config.fontSize, monospacedForClock: true)
-            clockLabel.alignment = clockAlignment
-            clockLabel.autoresizingMask = config.centerClock ? [.minXMargin, .maxXMargin] : [.minXMargin]
-            clockLabel.lineBreakMode = .byClipping
-            clockLabel.usesSingleLineMode = true
-            clockLabel.cell?.truncatesLastVisibleLine = true
-            contentView.addSubview(clockLabel)
-            clockLabels.append(clockLabel)
         }
     }
 
     private func updateClock() {
         let formatter = DateFormatter()
-        formatter.dateFormat = config.clockFormat
+        
+        // Update date labels
+        formatter.dateFormat = "yyyy-MM-dd"
+        let dateString = formatter.string(from: Date())
+        for dateLabel in dateLabels {
+            dateLabel.stringValue = dateString
+        }
+        
+        // Update time labels
+        formatter.dateFormat = "HH:mm"
         let timeString = formatter.string(from: Date())
         for clockLabel in clockLabels {
             clockLabel.stringValue = timeString
@@ -229,6 +286,34 @@ class StatusBarController {
             }
         }
     }
+    
+    private func updateBattery() {
+        guard let powerSourceInfo = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
+              let powerSources = IOPSCopyPowerSourcesList(powerSourceInfo)?.takeRetainedValue() as? [CFTypeRef] else {
+            return
+        }
+        
+        for source in powerSources {
+            guard let info = IOPSGetPowerSourceDescription(powerSourceInfo, source)?.takeUnretainedValue() as? [String: Any] else {
+                continue
+            }
+            
+            let capacity = info[kIOPSCurrentCapacityKey] as? Int ?? 0
+            let isCharging = (info[kIOPSIsChargingKey] as? Bool) ?? false
+            let isPlugged = (info[kIOPSPowerSourceStateKey] as? String) == kIOPSACPowerValue
+            
+            let chargingSymbol = (isCharging || isPlugged) ? "⚡" : ""
+            let batteryText = String(format: "%@%02d%%", chargingSymbol, capacity)
+            
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                for batteryLabel in self.batteryLabels {
+                    batteryLabel.stringValue = batteryText
+                }
+            }
+            break
+        }
+    }
 }
 
 struct YBarConfig {
@@ -245,6 +330,8 @@ struct YBarConfig {
     var centerClock: Bool = false
     var centerWorkspace: Bool = false
     var padding: CGFloat = 10
+    var itemSpacing: CGFloat = 10
+    var rightMargin: CGFloat = 30
 
     init(path: String? = nil, centerClock: Bool? = nil, centerWorkspace: Bool? = nil) {
         let configPath = path ?? NSString(string: "~/.ybar.conf").expandingTildeInPath
@@ -301,6 +388,10 @@ struct YBarConfig {
                 centerWorkspace = value.lowercased() == "true" || value == "1"
             case "padding":
                 if let p = Double(value) { padding = CGFloat(p) }
+            case "item_spacing":
+                if let s = Double(value) { itemSpacing = CGFloat(s) }
+            case "right_margin":
+                if let r = Double(value) { rightMargin = CGFloat(r) }
             default:
                 break
             }

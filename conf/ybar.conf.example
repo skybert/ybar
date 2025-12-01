@@ -36,3 +36,7 @@ center_clock = false
 center_workspace = false
 # Padding around elements in pixels (default: 10)
 padding = 10
+# Spacing between right-aligned items (battery, clock, etc.) in pixels (default: 10)
+item_spacing = 10
+# Extra margin on the right side to avoid macOS menu bar items (default: 30)
+right_margin = 30
