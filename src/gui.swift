@@ -143,10 +143,10 @@ class StatusBarController {
             contentView.addSubview(workspaceLabel)
             workspaceLabels.append(workspaceLabel)
         }
-        
+
         setupRightAlignedItems(contentView: contentView)
     }
-    
+
     private func setupRightAlignedItems(contentView: NSView) {
         struct RightItem {
             let width: CGFloat
@@ -154,9 +154,9 @@ class StatusBarController {
             let alignment: NSTextAlignment
             let setupAction: (NSTextField) -> Void
         }
-        
+
         var items: [RightItem] = []
-        
+
         items.append(RightItem(
             width: 60,
             isMonospaced: true,
@@ -164,7 +164,7 @@ class StatusBarController {
         ) { [weak self] label in
             self?.batteryLabels.append(label)
         })
-        
+
         items.append(RightItem(
             width: 85,
             isMonospaced: true,
@@ -172,7 +172,7 @@ class StatusBarController {
         ) { [weak self] label in
             self?.dateLabels.append(label)
         })
-        
+
         if config.showClock {
             items.append(RightItem(
                 width: 45,
@@ -182,12 +182,12 @@ class StatusBarController {
                 self?.clockLabels.append(label)
             })
         }
-        
+
         var currentX = contentView.bounds.width - config.padding - config.rightMargin
-        
+
         for (index, item) in items.enumerated().reversed() {
             currentX -= item.width
-            
+
             let label = NSTextField(frame: NSRect(x: currentX,
                                                    y: 0,
                                                    width: item.width,
@@ -202,10 +202,10 @@ class StatusBarController {
             label.lineBreakMode = .byClipping
             label.usesSingleLineMode = true
             label.cell?.truncatesLastVisibleLine = true
-            
+
             contentView.addSubview(label)
             item.setupAction(label)
-            
+
             if index > 0 {
                 currentX -= config.itemSpacing
             }
@@ -214,13 +214,13 @@ class StatusBarController {
 
     private func updateClock() {
         let formatter = DateFormatter()
-        
+
         formatter.dateFormat = "yyyy-MM-dd"
         let dateString = formatter.string(from: Date())
         for dateLabel in dateLabels {
             dateLabel.stringValue = dateString
         }
-        
+
         formatter.dateFormat = "HH:mm"
         let timeString = formatter.string(from: Date())
         for clockLabel in clockLabels {
@@ -268,25 +268,25 @@ class StatusBarController {
             }
         }
     }
-    
+
     private func updateBattery() {
         guard let powerSourceInfo = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
               let powerSources = IOPSCopyPowerSourcesList(powerSourceInfo)?.takeRetainedValue() as? [CFTypeRef] else {
             return
         }
-        
+
         for source in powerSources {
             guard let info = IOPSGetPowerSourceDescription(powerSourceInfo, source)?.takeUnretainedValue() as? [String: Any] else {
                 continue
             }
-            
+
             let capacity = info[kIOPSCurrentCapacityKey] as? Int ?? 0
             let isCharging = (info[kIOPSIsChargingKey] as? Bool) ?? false
             let isPlugged = (info[kIOPSPowerSourceStateKey] as? String) == kIOPSACPowerValue
-            
+
             let chargingSymbol = (isCharging || isPlugged) ? "⚡" : ""
             let batteryText = String(format: "%@%02d%%", chargingSymbol, capacity)
-            
+
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
                 for batteryLabel in self.batteryLabels {
