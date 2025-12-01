@@ -126,7 +126,7 @@ class StatusBarController {
             }
 
             let workspaceLabel = NSTextField(frame: NSRect(x: workspaceX,
-                                                           y: config.padding / 2,
+                                                           y: 0,
                                                            width: workspaceWidth,
                                                            height: contentView.bounds.height - config.padding))
             workspaceLabel.isBordered = false
@@ -162,7 +162,7 @@ class StatusBarController {
             }
 
             let clockLabel = NSTextField(frame: NSRect(x: clockX,
-                                                       y: config.padding / 2,
+                                                       y: 0,
                                                        width: clockWidth,
                                                        height: contentView.bounds.height - config.padding))
             clockLabel.isBordered = false
