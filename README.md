@@ -1,27 +1,33 @@
 # ybar
 
-A lightweight, configurable menubar replacement for macOS written in Swift.
+A lightweight, configurable menubar replacement for macOS.
+
+<img
+  class="centered"
+  src="doc/screenshot.png"
+  alt="ybar screenshot"
+/>
+
 
 ## Features
 
-- **Translucent bar** - Shows desktop background through the bar
-- **Clock display** - Configurable time format on the right
-- **AeroSpace integration** - Shows current workspace indicator
-- **Highly configurable** - Simple configuration file
-- **Minimal dependencies** - Only requires Swift compiler
+- Translucent
+- Clock
+- AeroSpace workspace indicator
+- Configurable
 
 ## Requirements
 
 - macOS 10.15 or later
 - Swift compiler (Xcode command line tools)
-- Native macOS menubar set to "always hide"
+- Native macOS menubar set to "always hide" or "auto hide"
 - AeroSpace window manager (optional, for workspace indicator)
 
 ## Installation
 
 ```bash
-make
-sudo make install
+$ make
+$ sudo make install
 ```
 
 This installs:
@@ -65,17 +71,17 @@ ybar --conf /path/to/config
 
 View help:
 ```bash
-ybar --help
+$ ybar --help
 ```
 
 View version:
 ```bash
-ybar --version
+$ ybar --version
 ```
 
 View manual:
 ```bash
-man ybar
+$ man ybar
 ```
 
 ## Configuration Options
@@ -98,18 +104,16 @@ man ybar
 make
 ```
 
-This compiles `Sources/main.swift` into the `ybar` executable.
+## Removing
 
-## Uninstallation
-
-```bash
-sudo make uninstall
+```text
+# make uninstall
 ```
 
 ## License
 
-See LICENSE file for details.
+See [LICENSE](LICENSE) file for details.
 
 ## Authors
 
-See AUTHORS file for contributors.
+See [AUTHORS](AUTHORS) file for contributors.
