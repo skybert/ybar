@@ -6,7 +6,7 @@ SWIFT = swiftc
 SWIFTFLAGS = -O -framework Cocoa -framework Foundation
 
 TARGET = ybar
-SOURCE = src/main.swift
+SOURCES = src/main.swift src/gui.swift src/conf.swift src/cli.swift
 VERSION_FILE = src/version.swift
 MANPAGE = man/ybar.1
 MANPAGE_TEMPLATE = man/ybar.1.in
@@ -21,8 +21,8 @@ all: $(TARGET) $(MANPAGE)
 $(VERSION_FILE):
 	@echo 'let VERSION = "$(VERSION)"' > $(VERSION_FILE)
 
-$(TARGET): $(SOURCE) $(VERSION_FILE)
-	$(SWIFT) $(SWIFTFLAGS) $(SOURCE) $(VERSION_FILE) -o $(TARGET)
+$(TARGET): $(SOURCES) $(VERSION_FILE)
+	$(SWIFT) $(SWIFTFLAGS) $(SOURCES) $(VERSION_FILE) -o $(TARGET)
 
 $(MANPAGE): $(MANPAGE_TEMPLATE) AUTHORS
 	@awk 'BEGIN{auth=0} /^\.SH AUTHORS/{auth=1; print; while(getline < "AUTHORS"){if($$0 != ""){print ".br"; print $$0}} next} /^\.SH SEE ALSO/{auth=0} auth==0{print}' $(MANPAGE_TEMPLATE) > $(MANPAGE)
