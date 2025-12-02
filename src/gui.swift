@@ -8,7 +8,7 @@ class YBarApp: NSObject, NSApplicationDelegate {
     var centerClock: Bool?
     var centerWorkspace: Bool?
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    func applicationDidFinishLaunching(_: Notification) {
         statusBar = StatusBarController(configPath: configPath, centerClock: centerClock, centerWorkspace: centerWorkspace)
         statusBar?.setup()
     }
@@ -24,7 +24,7 @@ class StatusBarController {
     private var config: YBarConfig
 
     init(configPath: String? = nil, centerClock: Bool? = nil, centerWorkspace: Bool? = nil) {
-        self.config = YBarConfig(path: configPath, centerClock: centerClock, centerWorkspace: centerWorkspace)
+        config = YBarConfig(path: configPath, centerClock: centerClock, centerWorkspace: centerWorkspace)
     }
 
     func setup() {
@@ -73,15 +73,15 @@ class StatusBarController {
         let fullFrame = screen.frame
 
         let windowRect = NSRect(x: fullFrame.origin.x,
-                               y: fullFrame.origin.y + fullFrame.height - barHeight,
-                               width: fullFrame.width,
-                               height: barHeight)
+                                y: fullFrame.origin.y + fullFrame.height - barHeight,
+                                width: fullFrame.width,
+                                height: barHeight)
 
         let window = NSWindow(contentRect: windowRect,
-                             styleMask: [.borderless, .fullSizeContentView],
-                             backing: .buffered,
-                             defer: false,
-                             screen: screen)
+                              styleMask: [.borderless, .fullSizeContentView],
+                              backing: .buffered,
+                              defer: false,
+                              screen: screen)
 
         window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.popUpMenuWindow)))
         window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
@@ -106,7 +106,7 @@ class StatusBarController {
         windows.append(window)
     }
 
-    private func setupLabels(for window: NSWindow, contentView: NSView) {
+    private func setupLabels(for _: NSWindow, contentView: NSView) {
         let bothCentered = config.showClock && config.showWorkspace && config.centerClock && config.centerWorkspace
 
         if config.showWorkspace {
@@ -189,9 +189,9 @@ class StatusBarController {
             currentX -= item.width
 
             let label = NSTextField(frame: NSRect(x: currentX,
-                                                   y: 2,
-                                                   width: item.width,
-                                                   height: contentView.bounds.height - config.padding))
+                                                  y: 2,
+                                                  width: item.width,
+                                                  height: contentView.bounds.height - config.padding))
             label.isBordered = false
             label.isEditable = false
             label.backgroundColor = .clear
@@ -271,7 +271,8 @@ class StatusBarController {
 
     private func updateBattery() {
         guard let powerSourceInfo = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
-              let powerSources = IOPSCopyPowerSourcesList(powerSourceInfo)?.takeRetainedValue() as? [CFTypeRef] else {
+              let powerSources = IOPSCopyPowerSourcesList(powerSourceInfo)?.takeRetainedValue() as? [CFTypeRef]
+        else {
             return
         }
 

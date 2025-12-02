@@ -14,9 +14,9 @@ MANPAGE_TEMPLATE = man/ybar.1.in
 # Get version from git
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "unknown")
 
-.PHONY: all clean install uninstall
+.PHONY: all clean install uninstall fmt
 
-all: $(TARGET) $(MANPAGE)
+all: fmt $(TARGET) $(MANPAGE)
 
 $(VERSION_FILE):
 	@echo 'let VERSION = "$(VERSION)"' > $(VERSION_FILE)
@@ -39,5 +39,8 @@ install: $(TARGET) $(MANPAGE)
 uninstall:
 	rm -f $(BINDIR)/$(TARGET)
 	rm -f $(MANDIR)/ybar.1
+
+fmt:
+	swiftformat $(SOURCES)
 
 .DEFAULT_GOAL := all
