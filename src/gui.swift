@@ -24,6 +24,7 @@ class StatusBarController {
     private var config: YBarConfig
     private var isReconfiguring = false
     private let queue = DispatchQueue(label: "com.ybar.screenchange")
+    private var workspaceTask: Process?
 
     init(configPath: String? = nil, centerClock: Bool? = nil, centerWorkspace: Bool? = nil) {
         config = YBarConfig(path: configPath, centerClock: centerClock, centerWorkspace: centerWorkspace)
@@ -49,41 +50,128 @@ class StatusBarController {
             name: NSApplication.didChangeScreenParametersNotification,
             object: nil,
         )
+
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(willSleep),
+            name: NSWorkspace.willSleepNotification,
+            object: nil,
+        )
+
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(didWake),
+            name: NSWorkspace.didWakeNotification,
+            object: nil,
+        )
     }
 
     @objc private func screenParametersChanged() {
+        // Defer the reconfiguration to avoid autoreleasepool issues
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+
+            // Prevent re-entry
+            var alreadyReconfiguring = false
+            queue.sync {
+                alreadyReconfiguring = self.isReconfiguring
+                if !alreadyReconfiguring {
+                    self.isReconfiguring = true
+                }
+            }
+            guard !alreadyReconfiguring else { return }
+
+            // Stop timer first
+            timer?.invalidate()
+            timer = nil
+
+            // Terminate any running workspace task
+            if let task = workspaceTask, task.isRunning {
+                task.terminate()
+            }
+            workspaceTask = nil
+
+            // Order out windows instead of closing them to avoid autoreleasepool issues
+            for window in windows {
+                window.orderOut(nil)
+            }
+            windows = []
+            clockLabels = []
+            dateLabels = []
+            workspaceLabels = []
+            batteryLabels = []
+
+            // Recreate
+            if let mainScreen = NSScreen.main {
+                createWindowForScreen(mainScreen)
+            }
+
+            queue.sync {
+                self.isReconfiguring = false
+            }
+
+            // Restart timer
+            timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+                self?.updateClock()
+                self?.updateWorkspace()
+                self?.updateBattery()
+            }
+
+            updateClock()
+            updateWorkspace()
+            updateBattery()
+        }
+    }
+
+    @objc private func willSleep() {
         queue.sync {
             isReconfiguring = true
         }
-
         timer?.invalidate()
+        timer = nil
 
-        for window in windows {
-            window.close()
+        // Terminate any running workspace task
+        workspaceTask?.terminate()
+        workspaceTask = nil
+    }
+
+    @objc private func didWake() {
+        queue.async { [weak self] in
+            guard let self else { return }
+
+            DispatchQueue.main.async {
+                // Stop the old timer first to prevent it from accessing deallocated objects
+                self.timer?.invalidate()
+                self.timer = nil
+
+                for window in self.windows {
+                    window.orderOut(nil)
+                }
+                self.windows = []
+                self.clockLabels = []
+                self.dateLabels = []
+                self.workspaceLabels = []
+                self.batteryLabels = []
+
+                if let mainScreen = NSScreen.main {
+                    self.createWindowForScreen(mainScreen)
+                }
+
+                self.queue.sync {
+                    self.isReconfiguring = false
+                }
+
+                self.timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+                    self?.updateClock()
+                    self?.updateWorkspace()
+                    self?.updateBattery()
+                }
+
+                self.updateClock()
+                self.updateWorkspace()
+                self.updateBattery()
+            }
         }
-        windows.removeAll()
-        clockLabels.removeAll()
-        dateLabels.removeAll()
-        workspaceLabels.removeAll()
-        batteryLabels.removeAll()
-
-        if let mainScreen = NSScreen.main {
-            createWindowForScreen(mainScreen)
-        }
-
-        queue.sync {
-            isReconfiguring = false
-        }
-
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.updateClock()
-            self?.updateWorkspace()
-            self?.updateBattery()
-        }
-
-        updateClock()
-        updateWorkspace()
-        updateBattery()
     }
 
     private func createWindowForScreen(_ screen: NSScreen) {
@@ -263,6 +351,7 @@ class StatusBarController {
             guard let self else { return }
 
             let task = Process()
+            workspaceTask = task
             task.launchPath = "/usr/bin/env"
             task.arguments = ["aerospace", "list-workspaces", "--focused"]
 
@@ -274,28 +363,58 @@ class StatusBarController {
                 try task.run()
                 task.waitUntilExit()
 
+                // Check if we're still valid after waiting
+                var stillValid = false
+                queue.sync {
+                    stillValid = !self.isReconfiguring && self.workspaceTask === task
+                }
+                guard stillValid else { return }
+
                 let data = pipe.fileHandleForReading.readDataToEndOfFile()
                 if let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) {
                     let displayText = output.isEmpty ? "—" : "\(config.workspacePrefix)\(output)"
-                    DispatchQueue.main.async {
-                        for workspaceLabel in self.workspaceLabels {
+                    DispatchQueue.main.async { [weak self] in
+                        guard let self else { return }
+                        var shouldUpdate = false
+                        queue.sync {
+                            shouldUpdate = !self.isReconfiguring
+                        }
+                        guard shouldUpdate else { return }
+
+                        for workspaceLabel in workspaceLabels {
                             workspaceLabel.stringValue = displayText
                         }
                     }
                 } else {
-                    DispatchQueue.main.async {
-                        for workspaceLabel in self.workspaceLabels {
+                    DispatchQueue.main.async { [weak self] in
+                        guard let self else { return }
+                        var shouldUpdate = false
+                        queue.sync {
+                            shouldUpdate = !self.isReconfiguring
+                        }
+                        guard shouldUpdate else { return }
+
+                        for workspaceLabel in workspaceLabels {
                             workspaceLabel.stringValue = "—"
                         }
                     }
                 }
             } catch {
-                DispatchQueue.main.async {
-                    for workspaceLabel in self.workspaceLabels {
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    var shouldUpdate = false
+                    queue.sync {
+                        shouldUpdate = !self.isReconfiguring
+                    }
+                    guard shouldUpdate else { return }
+
+                    for workspaceLabel in workspaceLabels {
                         workspaceLabel.stringValue = "—"
                     }
                 }
             }
+
+            workspaceTask = nil
         }
     }
 
