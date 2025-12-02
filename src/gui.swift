@@ -22,6 +22,8 @@ class StatusBarController {
     private var batteryLabels: [NSTextField] = []
     private var timer: Timer?
     private var config: YBarConfig
+    private var isReconfiguring = false
+    private let queue = DispatchQueue(label: "com.ybar.screenchange")
 
     init(configPath: String? = nil, centerClock: Bool? = nil, centerWorkspace: Bool? = nil) {
         config = YBarConfig(path: configPath, centerClock: centerClock, centerWorkspace: centerWorkspace)
@@ -45,11 +47,17 @@ class StatusBarController {
             self,
             selector: #selector(screenParametersChanged),
             name: NSApplication.didChangeScreenParametersNotification,
-            object: nil
+            object: nil,
         )
     }
 
     @objc private func screenParametersChanged() {
+        queue.sync {
+            isReconfiguring = true
+        }
+
+        timer?.invalidate()
+
         for window in windows {
             window.close()
         }
@@ -61,6 +69,16 @@ class StatusBarController {
 
         if let mainScreen = NSScreen.main {
             createWindowForScreen(mainScreen)
+        }
+
+        queue.sync {
+            isReconfiguring = false
+        }
+
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.updateClock()
+            self?.updateWorkspace()
+            self?.updateBattery()
         }
 
         updateClock()
@@ -160,7 +178,7 @@ class StatusBarController {
         items.append(RightItem(
             width: 60,
             isMonospaced: true,
-            alignment: .right
+            alignment: .right,
         ) { [weak self] label in
             self?.batteryLabels.append(label)
         })
@@ -168,7 +186,7 @@ class StatusBarController {
         items.append(RightItem(
             width: 85,
             isMonospaced: true,
-            alignment: .right
+            alignment: .right,
         ) { [weak self] label in
             self?.dateLabels.append(label)
         })
@@ -177,7 +195,7 @@ class StatusBarController {
             items.append(RightItem(
                 width: 45,
                 isMonospaced: true,
-                alignment: .right
+                alignment: .right,
             ) { [weak self] label in
                 self?.clockLabels.append(label)
             })
@@ -213,6 +231,12 @@ class StatusBarController {
     }
 
     private func updateClock() {
+        var shouldUpdate = false
+        queue.sync {
+            shouldUpdate = !isReconfiguring
+        }
+        guard shouldUpdate else { return }
+
         let formatter = DateFormatter()
 
         formatter.dateFormat = "yyyy-MM-dd"
@@ -229,8 +253,14 @@ class StatusBarController {
     }
 
     private func updateWorkspace() {
+        var shouldUpdate = false
+        queue.sync {
+            shouldUpdate = !isReconfiguring
+        }
+        guard shouldUpdate else { return }
+
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self = self else { return }
+            guard let self else { return }
 
             let task = Process()
             task.launchPath = "/usr/bin/env"
@@ -246,7 +276,7 @@ class StatusBarController {
 
                 let data = pipe.fileHandleForReading.readDataToEndOfFile()
                 if let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) {
-                    let displayText = output.isEmpty ? "—" : "\(self.config.workspacePrefix)\(output)"
+                    let displayText = output.isEmpty ? "—" : "\(config.workspacePrefix)\(output)"
                     DispatchQueue.main.async {
                         for workspaceLabel in self.workspaceLabels {
                             workspaceLabel.stringValue = displayText
@@ -270,6 +300,12 @@ class StatusBarController {
     }
 
     private func updateBattery() {
+        var shouldUpdate = false
+        queue.sync {
+            shouldUpdate = !isReconfiguring
+        }
+        guard shouldUpdate else { return }
+
         guard let powerSourceInfo = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
               let powerSources = IOPSCopyPowerSourcesList(powerSourceInfo)?.takeRetainedValue() as? [CFTypeRef]
         else {
@@ -289,8 +325,8 @@ class StatusBarController {
             let batteryText = String(format: "%@%02d%%", chargingSymbol, capacity)
 
             DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
-                for batteryLabel in self.batteryLabels {
+                guard let self else { return }
+                for batteryLabel in batteryLabels {
                     batteryLabel.stringValue = batteryText
                 }
             }
