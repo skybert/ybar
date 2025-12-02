@@ -22,10 +22,10 @@ struct YBarConfig {
         let configPath = path ?? NSString(string: "~/.ybar.conf").expandingTildeInPath
         loadConfig(from: configPath)
 
-        if let centerClock = centerClock {
+        if let centerClock {
             self.centerClock = centerClock
         }
-        if let centerWorkspace = centerWorkspace {
+        if let centerWorkspace {
             self.centerWorkspace = centerWorkspace
         }
     }
@@ -100,16 +100,16 @@ struct YBarConfig {
     func getFont(size: CGFloat, monospacedForClock: Bool = false) -> NSFont {
         switch fontFamily.lowercased() {
         case "system":
-            return monospacedForClock ?
+            monospacedForClock ?
                 NSFont.monospacedSystemFont(ofSize: size, weight: .regular) :
                 NSFont.systemFont(ofSize: size, weight: .medium)
         case "monospace", "monospaced":
-            return NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
+            NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
         default:
             if let customFont = NSFont(name: fontFamily, size: size) {
-                return customFont
+                customFont
             } else {
-                return monospacedForClock ?
+                monospacedForClock ?
                     NSFont.monospacedSystemFont(ofSize: size, weight: .regular) :
                     NSFont.systemFont(ofSize: size, weight: .medium)
             }
