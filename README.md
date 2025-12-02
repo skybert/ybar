@@ -38,7 +38,7 @@ This installs:
 
 Create `~/.ybar.conf` with your preferences:
 
-```conf
+```ini
 # Bar appearance
 height = 24
 opacity = 0.7
