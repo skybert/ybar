@@ -189,7 +189,7 @@ class StatusBarController {
             currentX -= item.width
 
             let label = NSTextField(frame: NSRect(x: currentX,
-                                                   y: 0,
+                                                   y: 2,
                                                    width: item.width,
                                                    height: contentView.bounds.height - config.padding))
             label.isBordered = false
@@ -284,7 +284,7 @@ class StatusBarController {
             let isCharging = (info[kIOPSIsChargingKey] as? Bool) ?? false
             let isPlugged = (info[kIOPSPowerSourceStateKey] as? String) == kIOPSACPowerValue
 
-            let chargingSymbol = (isCharging || isPlugged) ? "⚡" : ""
+            let chargingSymbol = (isCharging || isPlugged) ? "⚡" : "🔋"
             let batteryText = String(format: "%@%02d%%", chargingSymbol, capacity)
 
             DispatchQueue.main.async { [weak self] in
