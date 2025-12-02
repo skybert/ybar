@@ -372,7 +372,7 @@ class StatusBarController {
 
                 let data = pipe.fileHandleForReading.readDataToEndOfFile()
                 if let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) {
-                    let displayText = output.isEmpty ? "—" : "\(config.workspacePrefix)\(output)"
+                    let displayText = output.isEmpty ? "" : "\(config.workspacePrefix)\(output)"
                     DispatchQueue.main.async { [weak self] in
                         guard let self else { return }
                         var shouldUpdate = false
@@ -395,11 +395,12 @@ class StatusBarController {
                         guard shouldUpdate else { return }
 
                         for workspaceLabel in workspaceLabels {
-                            workspaceLabel.stringValue = "—"
+                            workspaceLabel.stringValue = ""
                         }
                     }
                 }
             } catch {
+                // If aerospace is not available, just show nothing
                 DispatchQueue.main.async { [weak self] in
                     guard let self else { return }
                     var shouldUpdate = false
@@ -409,7 +410,7 @@ class StatusBarController {
                     guard shouldUpdate else { return }
 
                     for workspaceLabel in workspaceLabels {
-                        workspaceLabel.stringValue = "—"
+                        workspaceLabel.stringValue = ""
                     }
                 }
             }
