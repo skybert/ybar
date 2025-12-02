@@ -127,7 +127,7 @@ class StatusBarController {
             }
 
             let workspaceLabel = NSTextField(frame: NSRect(x: workspaceX,
-                                                           y: 0,
+                                                           y: 2,
                                                            width: workspaceWidth,
                                                            height: contentView.bounds.height - config.padding))
             workspaceLabel.isBordered = false

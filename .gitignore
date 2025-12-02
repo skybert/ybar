@@ -1,5 +1,6 @@
 ybar
 man/ybar.1
+src/version.swift
 *.o
 *.swp
 *.dSYM
