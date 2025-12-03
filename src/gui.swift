@@ -25,6 +25,7 @@ class StatusBarController {
     private var isReconfiguring = false
     private let queue = DispatchQueue(label: "com.ybar.screenchange")
     private var workspaceTask: Process?
+    private var initialScreen: NSScreen?
 
     init(configPath: String? = nil, centerClock: Bool? = nil, centerWorkspace: Bool? = nil) {
         config = YBarConfig(path: configPath, centerClock: centerClock, centerWorkspace: centerWorkspace)
@@ -32,6 +33,7 @@ class StatusBarController {
 
     func setup() {
         if let mainScreen = NSScreen.main {
+            initialScreen = mainScreen
             createWindowForScreen(mainScreen)
         }
 
@@ -102,8 +104,8 @@ class StatusBarController {
             batteryLabels = []
 
             // Recreate
-            if let mainScreen = NSScreen.main {
-                createWindowForScreen(mainScreen)
+            if let screen = initialScreen {
+                createWindowForScreen(screen)
             }
 
             queue.sync {
@@ -153,8 +155,8 @@ class StatusBarController {
                 self.workspaceLabels = []
                 self.batteryLabels = []
 
-                if let mainScreen = NSScreen.main {
-                    self.createWindowForScreen(mainScreen)
+                if let screen = self.initialScreen {
+                    self.createWindowForScreen(screen)
                 }
 
                 self.queue.sync {
@@ -233,7 +235,7 @@ class StatusBarController {
             }
 
             let workspaceLabel = NSTextField(frame: NSRect(x: workspaceX,
-                                                           y: 2,
+                                                           y: 0,
                                                            width: workspaceWidth,
                                                            height: contentView.bounds.height - config.padding))
             workspaceLabel.isBordered = false
@@ -295,7 +297,7 @@ class StatusBarController {
             currentX -= item.width
 
             let label = NSTextField(frame: NSRect(x: currentX,
-                                                  y: 2,
+                                                  y: 0,
                                                   width: item.width,
                                                   height: contentView.bounds.height - config.padding))
             label.isBordered = false
