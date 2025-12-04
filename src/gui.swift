@@ -104,7 +104,7 @@ class StatusBarController {
             batteryLabels = []
 
             // Recreate
-            if let screen = initialScreen {
+            if let screen = getValidScreen() {
                 createWindowForScreen(screen)
             }
 
@@ -155,7 +155,7 @@ class StatusBarController {
                 self.workspaceLabels = []
                 self.batteryLabels = []
 
-                if let screen = self.initialScreen {
+                if let screen = self.getValidScreen() {
                     self.createWindowForScreen(screen)
                 }
 
@@ -174,6 +174,15 @@ class StatusBarController {
                 self.updateBattery()
             }
         }
+    }
+
+    private func getValidScreen() -> NSScreen? {
+        // Check if initialScreen is still valid (connected)
+        if let initial = initialScreen, NSScreen.screens.contains(where: { $0 == initial }) {
+            return initial
+        }
+        // Fall back to main screen if initial screen is disconnected
+        return NSScreen.main
     }
 
     private func createWindowForScreen(_ screen: NSScreen) {
