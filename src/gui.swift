@@ -69,44 +69,49 @@ class StatusBarController {
     }
 
     @objc private func screenParametersChanged() {
-        // Defer the reconfiguration to avoid autoreleasepool issues
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-
-            // Prevent re-entry
-            var alreadyReconfiguring = false
-            queue.sync {
-                alreadyReconfiguring = self.isReconfiguring
-                if !alreadyReconfiguring {
-                    self.isReconfiguring = true
-                }
+        // Prevent re-entry
+        var alreadyReconfiguring = false
+        queue.sync {
+            alreadyReconfiguring = isReconfiguring
+            if !alreadyReconfiguring {
+                isReconfiguring = true
             }
-            guard !alreadyReconfiguring else { return }
+        }
+        if alreadyReconfiguring {
+            return
+        }
 
-            // Stop timer first
-            timer?.invalidate()
-            timer = nil
+        // Stop timer first
+        timer?.invalidate()
+        timer = nil
 
-            // Terminate any running workspace task
-            if let task = workspaceTask, task.isRunning {
-                task.terminate()
+        // Terminate any running workspace task
+        if let task = workspaceTask, task.isRunning {
+            task.terminate()
+        }
+        workspaceTask = nil
+
+        // Order out windows instead of closing them to avoid autoreleasepool issues
+        for window in windows {
+            window.orderOut(nil)
+        }
+        windows = []
+        clockLabels = []
+        dateLabels = []
+        workspaceLabels = []
+        batteryLabels = []
+
+        // Defer recreation to allow screen geometry to stabilize
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self else {
+                return
             }
-            workspaceTask = nil
-
-            // Order out windows instead of closing them to avoid autoreleasepool issues
-            for window in windows {
-                window.orderOut(nil)
-            }
-            windows = []
-            clockLabels = []
-            dateLabels = []
-            workspaceLabels = []
-            batteryLabels = []
 
             // Recreate
             if let screen = getValidScreen() {
                 createWindowForScreen(screen)
-            }
+                correctWindowPositions()
+            } else {}
 
             queue.sync {
                 self.isReconfiguring = false
@@ -141,7 +146,8 @@ class StatusBarController {
         queue.async { [weak self] in
             guard let self else { return }
 
-            DispatchQueue.main.async {
+            // Give the system time to stabilize screen geometry after wake
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 // Stop the old timer first to prevent it from accessing deallocated objects
                 self.timer?.invalidate()
                 self.timer = nil
@@ -157,6 +163,8 @@ class StatusBarController {
 
                 if let screen = self.getValidScreen() {
                     self.createWindowForScreen(screen)
+                    // Explicitly correct position in case screen geometry was still settling
+                    self.correctWindowPositions()
                 }
 
                 self.queue.sync {
@@ -176,13 +184,41 @@ class StatusBarController {
         }
     }
 
+    private func correctWindowPositions() {
+        guard let screen = getValidScreen() else { return }
+
+        let barHeight: CGFloat = config.height
+        let fullFrame = screen.frame
+        let correctRect = NSRect(x: fullFrame.origin.x,
+                                 y: fullFrame.origin.y + fullFrame.height - barHeight,
+                                 width: fullFrame.width,
+                                 height: barHeight)
+
+        for window in windows {
+            window.setFrame(correctRect, display: true, animate: false)
+        }
+    }
+
     private func getValidScreen() -> NSScreen? {
         // Check if initialScreen is still valid (connected)
-        if let initial = initialScreen, NSScreen.screens.contains(where: { $0 == initial }) {
-            return initial
+        if let initial = initialScreen {
+            // Find the screen by matching against current screens
+            // Don't use object identity - use frame or other properties
+            for screen in NSScreen.screens {
+                if screen.localizedName == initial.localizedName {
+                    // Update to the fresh screen object with current coordinates
+                    initialScreen = screen
+                    return screen
+                }
+            }
         }
         // Fall back to main screen if initial screen is disconnected
-        return NSScreen.main
+        let mainScreen = NSScreen.main
+        if let main = mainScreen {
+            // Update initialScreen to the new main screen
+            initialScreen = main
+        }
+        return mainScreen
     }
 
     private func createWindowForScreen(_ screen: NSScreen) {
@@ -206,6 +242,8 @@ class StatusBarController {
         window.hasShadow = false
         window.backgroundColor = .clear
         window.ignoresMouseEvents = false
+        window.isMovable = false
+        window.isMovableByWindowBackground = false
         window.setFrame(windowRect, display: true)
 
         let visualEffect = NSVisualEffectView()
@@ -220,6 +258,7 @@ class StatusBarController {
         setupLabels(for: window, contentView: visualEffect)
 
         window.orderFrontRegardless()
+
         windows.append(window)
     }
 
