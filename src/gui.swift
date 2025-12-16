@@ -1,5 +1,6 @@
 import Cocoa
 import Foundation
+import IOBluetooth
 import IOKit.ps
 
 class YBarApp: NSObject, NSApplicationDelegate {
@@ -19,6 +20,7 @@ class StatusBarController {
     private var clockLabels: [NSTextField] = []
     private var dateLabels: [NSTextField] = []
     private var workspaceLabels: [NSTextField] = []
+    private var bluetoothLabels: [NSTextField] = []
     private var batteryLabels: [NSTextField] = []
     private var timer: Timer?
     private var config: YBarConfig
@@ -43,6 +45,7 @@ class StatusBarController {
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.updateClock()
             self?.updateWorkspace()
+            self?.updateBluetooth()
             self?.updateBattery()
         }
 
@@ -99,6 +102,7 @@ class StatusBarController {
         clockLabels = []
         dateLabels = []
         workspaceLabels = []
+        bluetoothLabels = []
         batteryLabels = []
 
         // Defer recreation to allow screen geometry to stabilize
@@ -121,11 +125,13 @@ class StatusBarController {
             timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
                 self?.updateClock()
                 self?.updateWorkspace()
+                self?.updateBluetooth()
                 self?.updateBattery()
             }
 
             updateClock()
             updateWorkspace()
+            updateBluetooth()
             updateBattery()
         }
     }
@@ -159,6 +165,7 @@ class StatusBarController {
                 self.clockLabels = []
                 self.dateLabels = []
                 self.workspaceLabels = []
+                self.bluetoothLabels = []
                 self.batteryLabels = []
 
                 if let screen = self.getValidScreen() {
@@ -174,11 +181,13 @@ class StatusBarController {
                 self.timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
                     self?.updateClock()
                     self?.updateWorkspace()
+                    self?.updateBluetooth()
                     self?.updateBattery()
                 }
 
                 self.updateClock()
                 self.updateWorkspace()
+                self.updateBluetooth()
                 self.updateBattery()
             }
         }
@@ -308,15 +317,29 @@ class StatusBarController {
             let width: CGFloat
             let isMonospaced: Bool
             let alignment: NSTextAlignment
+            let yOffset: CGFloat
             let setupAction: (NSTextField) -> Void
         }
 
         var items: [RightItem] = []
 
         items.append(RightItem(
+            width: 20,
+            isMonospaced: false,
+            alignment: .center,
+            yOffset: 2,
+        ) { [weak self] label in
+            label.isSelectable = false
+            let clickGesture = NSClickGestureRecognizer(target: self, action: #selector(self?.bluetoothClicked))
+            label.addGestureRecognizer(clickGesture)
+            self?.bluetoothLabels.append(label)
+        })
+
+        items.append(RightItem(
             width: 60,
             isMonospaced: true,
             alignment: .right,
+            yOffset: 0,
         ) { [weak self] label in
             self?.batteryLabels.append(label)
         })
@@ -325,6 +348,7 @@ class StatusBarController {
             width: 85,
             isMonospaced: true,
             alignment: .right,
+            yOffset: 0,
         ) { [weak self] label in
             self?.dateLabels.append(label)
         })
@@ -334,6 +358,7 @@ class StatusBarController {
                 width: 45,
                 isMonospaced: true,
                 alignment: .right,
+                yOffset: 0,
             ) { [weak self] label in
                 self?.clockLabels.append(label)
             })
@@ -345,7 +370,7 @@ class StatusBarController {
             currentX -= item.width
 
             let label = NSTextField(frame: NSRect(x: currentX,
-                                                  y: 0,
+                                                  y: item.yOffset,
                                                   width: item.width,
                                                   height: contentView.bounds.height - config.padding))
             label.isBordered = false
@@ -466,6 +491,33 @@ class StatusBarController {
             }
 
             workspaceTask = nil
+        }
+    }
+
+    @objc private func bluetoothClicked() {
+        let url = URL(string: "x-apple.systempreferences:com.apple.preferences.Bluetooth")!
+        NSWorkspace.shared.open(url)
+    }
+
+    private func updateBluetooth() {
+        var shouldUpdate = false
+        queue.sync {
+            shouldUpdate = !isReconfiguring
+        }
+        guard shouldUpdate else { return }
+
+        let hostController = IOBluetoothHostController.default()
+        let isPoweredOn = hostController?.powerState == kBluetoothHCIPowerStateON
+
+        let bluetoothSymbol = "ᛒ"
+        let color = isPoweredOn ? config.textColor : NSColor.gray.withAlphaComponent(0.4)
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            for bluetoothLabel in bluetoothLabels {
+                bluetoothLabel.stringValue = bluetoothSymbol
+                bluetoothLabel.textColor = color
+            }
         }
     }
 
